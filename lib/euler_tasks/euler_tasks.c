@@ -47,7 +47,16 @@ void tcp_server_task(void* pvParameters) {
     char addr_str[128] = {0};
     struct sockaddr_in dest_addr;
 
-    dest_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    esp_netif_ip_info_t ip_info;
+    esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
+    if(!netif) {
+        ESP_LOGE(SERVER_TAG, "netif failed");
+        vTaskDelete(NULL);
+        return;
+    }
+    ESP_ERROR_CHECK(esp_netif_get_ip_info(netif, &ip_info));
+
+    dest_addr.sin_addr.s_addr = ip_info.ip.addr;
     dest_addr.sin_family = AF_INET;
     dest_addr.sin_port = htons(PORT);
 
@@ -65,7 +74,9 @@ void tcp_server_task(void* pvParameters) {
         ESP_LOGE(SERVER_TAG, "failed to bind socket");
         goto CLEAN_UP;
     } else {
-        ESP_LOGI(SERVER_TAG, "socket bound port: %d", PORT);
+        char ip[32] = {0};
+        snprintf(ip, sizeof(ip) - 1, IPSTR, IP2STR(&ip_info.ip));
+        ESP_LOGI(SERVER_TAG, "socket bound ip: %s port %d", ip, PORT);
     }
 
     if(listen(listen_sock, 1) != 0) {

@@ -8,6 +8,7 @@
 #include "esp_log.h"
 #include "driver/gptimer.h"
 
+#include "euler_macros.h"
 #include "euler_filter.h"
 #include "euler_pid_control.h"
 #include "euler_wifi.h"
@@ -34,10 +35,6 @@ void app_main(void) {
     }
     ESP_ERROR_CHECK(ret);
 
-    /* open nvs */
-    nvs_handle_t nvs_handle;
-    ESP_ERROR_CHECK(nvs_open("storage", NVS_READWRITE, &nvs_handle));
-
     /* define control loop context */
     static ctrl_loop_context_t ctrl_ctx;
 
@@ -45,15 +42,10 @@ void app_main(void) {
     static tcp_server_context_t server_ctx;
 
     /* initialize pid control */
-
     /* read params from nvs */
-    euler_pid_params_t pid_params = {
-        .kp = nvs_get_float(nvs_handle, "kp", 1.0),
-        .ki = nvs_get_float(nvs_handle, "ki", 0.8),
-        .kd = nvs_get_float(nvs_handle, "kd", 0.5),
-        .setpoint = nvs_get_float(nvs_handle, "setpoint", 10000.0),
-        .max_output = nvs_get_float(nvs_handle, "max_output", 20000.0)
-    };
+    euler_pid_params_t pid_params = {0};
+    ESP_ERROR_CHECK(nvs_get_pid_params(PID_NVS_PARAMS, &pid_params));
+
     static euler_pid_control_t pid;
     ESP_ERROR_CHECK(euler_pid_init(&pid, &pid_params));
     ctrl_ctx.pid = pid;
@@ -61,10 +53,10 @@ void app_main(void) {
     server_ctx.pid_params = pid_params;
 
     /* initialize butterworth filter */
-    euler_filter_params_t filter_params = {
-        .fs = 10.0,
-        .cutoff = 2.0
-    };
+    /* read params from nvs */
+    euler_filter_params_t filter_params = {0};
+    ESP_ERROR_CHECK(nvs_get_filter_params(FILTER_NVS_PARAMS, &filter_params));
+
     static euler_filter_t filter;
     ESP_ERROR_CHECK(euler_filter_init(&filter, &filter_params));
     ctrl_ctx.filter = filter;
@@ -83,7 +75,7 @@ void app_main(void) {
     ESP_LOGI(TAG, "creating control task");
     xTaskCreate(ctrl_task, "main_ctrl_task", 4096, &ctrl_ctx, 2, &ctrl_task_handle);
 
-    /* create control loop harware timer */
+    /* create control loop hardware timer */
     gptimer_handle_t timer = NULL;
     gptimer_config_t timer_config = {
         .clk_src = GPTIMER_CLK_SRC_DEFAULT,

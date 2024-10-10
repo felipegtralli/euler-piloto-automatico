@@ -5,7 +5,9 @@
 
 #include "esp_log.h"
 
+#include "euler_macros.h"
 #include "messages_helper.h"
+#include "euler_nvs_helper.h"
 
 #define MAX_BUFFER 128
 
@@ -78,10 +80,13 @@ static void handle_command(int sock, char args[2][32], euler_pid_params_t* pid_p
             case 'k':
                 if(strcmp(args[0], "kp") == 0) {
                     pid_params->kp = strtof(args[1], NULL);
+                    write_message(sock, KP);
                 } else if(strcmp(args[0], "ki") == 0) {
                     pid_params->ki = strtof(args[1], NULL);
+                    write_message(sock, KI);
                 } else if(strcmp(args[0], "kd") == 0) {
                     pid_params->kd = strtof(args[1], NULL);
+                    write_message(sock, KD);
                 } else {
                     valid_command = false;
                 }
@@ -89,6 +94,7 @@ static void handle_command(int sock, char args[2][32], euler_pid_params_t* pid_p
             case 's':
                 if(strcmp(args[0], "setpoint") == 0) {
                     pid_params->setpoint = strtof(args[1], NULL);
+                    write_message(sock, SETPOINT);
                 } else {
                     valid_command = false;
                 }
@@ -96,6 +102,7 @@ static void handle_command(int sock, char args[2][32], euler_pid_params_t* pid_p
             case 'm':
                 if(strcmp(args[0], "max_output") == 0) {
                     pid_params->max_output = strtof(args[1], NULL);
+                    write_message(sock, MAX_OUTPUT);
                 } else {
                     valid_command = false;
                 }
@@ -106,6 +113,7 @@ static void handle_command(int sock, char args[2][32], euler_pid_params_t* pid_p
     }
     if(valid_command) {
         xQueueSend(update_ctrl_queue, pid_params, 0);
+        ESP_ERROR_CHECK(nvs_set_pid_params(PID_NVS_PARAMS, pid_params));
     } else {
         write_message(sock, UNKNOWN_COMMAND);
         ESP_LOGE(TAG, "unknown command: %s", args[0]);
@@ -126,7 +134,7 @@ bool euler_receive_data(int sock, euler_pid_params_t* pid_params) {
     char buffer[MAX_BUFFER] = {0};
     char data[MAX_BUFFER] = {0};
 
-    ssize_t len = recv(sock, buffer, sizeof(buffer) - 1, 0);
+    int len = read(sock, buffer, sizeof(buffer));
     if(len > 0) {
         buffer[len] = 0;
 
@@ -137,7 +145,7 @@ bool euler_receive_data(int sock, euler_pid_params_t* pid_params) {
             strncat(data, buffer, sizeof(data) - strlen(data) - 1);
         }
 
-        handle_data(sock, data, len, pid_params);
+        handle_data(sock, data, strlen(data), pid_params);
     } else if(len == 0) {
         ESP_LOGW(TAG, "closed connection");
         return false;

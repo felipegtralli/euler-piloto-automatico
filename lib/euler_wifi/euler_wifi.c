@@ -12,10 +12,8 @@
 #include "esp_mac.h"
 #include "esp_log.h"
 
-#define WIFI_SSID "esp32-AP"
-#define WIFI_PASSWORD "esp1315@"
-#define WIFI_CHANNEL 1
-#define WIFI_MAX_STA_CONN 4
+#include "euler_macros.h"
+#include "euler_nvs_helper.h"
 
 static const char* TAG = "EULER-WIFI";
 
@@ -39,20 +37,10 @@ void euler_wifi_init_ap() {
 
     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, NULL));
 
-    wifi_config_t wifi_config = {
-        .ap = {
-            .ssid = WIFI_SSID,
-            .ssid_len = strlen(WIFI_SSID),
-            .channel = WIFI_CHANNEL,
-            .password = WIFI_PASSWORD,
-            .max_connection = WIFI_MAX_STA_CONN,
-            .authmode = WIFI_AUTH_WPA2_PSK,
-            .pmf_cfg = {
-                .required = true,
-            },
-        },
-    };
-    if(strlen(WIFI_PASSWORD) == 0) {
+    wifi_config_t wifi_config = {0};
+    ESP_ERROR_CHECK(nvs_get_wifi_config(WIFI_NVS_CONFIG, &wifi_config));
+    
+    if(strlen((const char*) wifi_config.ap.password) == 0) {
         wifi_config.ap.authmode = WIFI_AUTH_OPEN;
     }
 
@@ -60,5 +48,5 @@ void euler_wifi_init_ap() {
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    ESP_LOGI(TAG, "wifi_init_softap finished. SSID:%s password:%s channel:%d", WIFI_SSID, WIFI_PASSWORD, WIFI_CHANNEL);
+    ESP_LOGI(TAG, "wifi_init_softap finished. SSID:%s password:%s channel:%d", wifi_config.ap.ssid, wifi_config.ap.password, wifi_config.ap.channel);
 }
