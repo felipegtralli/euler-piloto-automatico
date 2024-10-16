@@ -18,8 +18,8 @@ static void use_default_pid(euler_pid_params_t* params) {
 }
 
 static void use_default_filter(euler_filter_params_t* params) {
-    params->cutoff = 2.0;
-    params->fs = 10.0;
+    params->cutoff = 233.33;
+    params->fs = SAMPLING_INTERVAL_HZ;
 }
 
 static void use_default_wifi(wifi_config_t* cfg) {

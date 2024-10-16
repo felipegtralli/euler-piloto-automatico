@@ -2,6 +2,7 @@
 #include "euler_sensor.h"
 #include "euler_wifi.h"
 #include "euler_server.h"
+#include "euler_pwm_helper.h"
 
 #include "esp_log.h"
 
@@ -23,12 +24,21 @@ void ctrl_task(void* pvParameters) {
             ESP_LOGI(CTRL_TAG, "pid params updated");
         }
 
-        float sample = euler_read_sensor();
+        static int last_pulse = 0;
+        int cur_pulses = 0;
+        ESP_ERROR_CHECK(pcnt_unit_get_count(ctx->encoder, &cur_pulses));
+        int real_pulses = cur_pulses - last_pulse;
+        last_pulse = cur_pulses;
+
+        float sample = (float) euler_pulses2rpm(real_pulses);
 
         ESP_ERROR_CHECK(euler_filter_butter_2order_low(&ctx->filter, &sample));
 
         float pid_output = 0.0;
         ESP_ERROR_CHECK(euler_pid_compute(&ctx->pid, sample, &pid_output));
+
+        uint32_t speed = map_rpm2pwm(pid_output, .0, ctx->pid._coeffs.max_output);
+        ESP_ERROR_CHECK(bdc_motor_set_speed(ctx->motor, speed));
     }
 }
 

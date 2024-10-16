@@ -1,12 +1,11 @@
-#include <stdbool.h>
-#include <string.h>
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 #include "nvs_flash.h"
 #include "esp_log.h"
 #include "driver/gptimer.h"
+#include "driver/pulse_cnt.h"
+#include "bdc_motor.h"
 
 #include "euler_macros.h"
 #include "euler_filter.h"
@@ -14,9 +13,6 @@
 #include "euler_wifi.h"
 #include "euler_tasks.h"
 #include "euler_nvs_helper.h"
-
-/* DEFINES */
-#define SAMPLING_INTERVAL_MS 100 
 
 /* GLOBALS */
 static const char* TAG = "EULER-MAIN";
@@ -36,10 +32,10 @@ void app_main(void) {
     ESP_ERROR_CHECK(ret);
 
     /* define control loop context */
-    static ctrl_loop_context_t ctrl_ctx;
+    static ctrl_loop_context_t ctrl_ctx = {0};
 
     /* define server comm context */
-    static tcp_server_context_t server_ctx;
+    static tcp_server_context_t server_ctx = {0};
 
     /* initialize pid control */
     /* read params from nvs */
@@ -60,6 +56,42 @@ void app_main(void) {
     static euler_filter_t filter;
     ESP_ERROR_CHECK(euler_filter_init(&filter, &filter_params));
     ctrl_ctx.filter = filter;
+
+    /* initialize motor */
+    bdc_motor_config_t motor_config = {
+        .pwm_freq_hz = BDC_MCPWM_TIMER_FREQ,
+        .pwma_gpio_num = BDC_MOTOR_MCPWM_GPIOA,
+        .pwmb_gpio_num = BDC_MOTOR_MCPWM_GPIOB,
+    };
+    bdc_motor_mcpwm_config_t mcpwm_config = {
+        .group_id = 0,
+        .resolution_hz = BDC_MCPWM_TIMER_RES,
+    };
+    bdc_motor_handle_t motor = NULL;
+    ESP_ERROR_CHECK(bdc_motor_new_mcpwm_device(&motor_config, &mcpwm_config, &motor));
+    ctrl_ctx.motor = motor;
+
+    /* initialize encoder */
+    pcnt_unit_config_t unit_config = {
+        .high_limit = ENCODER_HIGH_LIMIT,
+        .low_limit = ENCODER_LOW_LIMIT,
+        .flags.accum_count = true,
+    };
+    pcnt_unit_handle_t pcnt_unit = NULL;
+    ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &pcnt_unit));
+
+    pcnt_chan_config_t chan_cfg = {
+        .edge_gpio_num = ENCODER_GPIO,
+        .level_gpio_num = -1,
+    };
+    pcnt_channel_handle_t pcnt_chan = NULL;
+    ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_cfg, &pcnt_chan));
+
+    ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_DECREASE));
+    ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
+    ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
+    ESP_ERROR_CHECK(pcnt_unit_start(pcnt_unit));
+    ctrl_ctx.encoder = pcnt_unit;
 
     /* initialize wifi access point */
     euler_wifi_init_ap();
@@ -87,7 +119,7 @@ void app_main(void) {
     /* configure loop to SAMPLING_INTERVAL_MS */
     gptimer_alarm_config_t alarm_config = {
         .reload_count = 0,
-        .alarm_count = SAMPLING_INTERVAL_MS * 1000, // alarm every 100ms
+        .alarm_count = (1.0 / SAMPLING_INTERVAL_HZ) * 1000000, // alarm every 1.667ms
         .flags.auto_reload_on_alarm = true,
     };
     ESP_ERROR_CHECK(gptimer_set_alarm_action(timer, &alarm_config));
