@@ -3,12 +3,13 @@
 
 #include "euler_pid_control.h"
 #include "euler_filter.h"
+#include "euler_bdc_motor.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gptimer.h"
 #include "driver/pulse_cnt.h"
-#include "bdc_motor.h"
+#include "driver/mcpwm.h"
 
 /**
  * @brief Control loop context
@@ -18,7 +19,7 @@ typedef struct {
     euler_pid_control_t pid;
     euler_pid_params_t pid_params;
     euler_filter_t filter;
-    bdc_motor_handle_t motor;
+    euler_bdc_motor_t motor;
     pcnt_unit_handle_t encoder;
 } ctrl_loop_context_t;
 

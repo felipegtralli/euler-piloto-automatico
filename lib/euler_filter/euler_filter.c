@@ -18,11 +18,11 @@ static void calc_coeficients(euler_filter_params_t params, euler_filter_coeffs_t
     filter_coeffs->b0 = 1.0 / (1.0 + q*ita + ita * ita);
     filter_coeffs->b1 = 2 * filter_coeffs->b0;
     filter_coeffs->b2 = filter_coeffs->b0;
-    filter_coeffs->a1 = 2.0 * (ita * ita - 1.0) * filter_coeffs->b0;
-    filter_coeffs->a2 = - (1.0 - q * ita + ita * ita) * filter_coeffs->b0;
+    filter_coeffs->a1 = - (2.0 * (ita * ita - 1.0) * filter_coeffs->b0);
+    filter_coeffs->a2 = - (- (1.0 - q * ita + ita * ita) * filter_coeffs->b0);
 }
 
-static float calc_butter_2order_low(euler_filter_coeffs_t* filter_coeffs, float sample) {
+static double calc_butter_2order_low(euler_filter_coeffs_t* filter_coeffs, float sample) {
     /* shifiting samples */
     filter_coeffs->x2 = filter_coeffs->x1;
     filter_coeffs->x1 = filter_coeffs->x0;
@@ -55,7 +55,7 @@ esp_err_t euler_filter_init(euler_filter_t* filter, euler_filter_params_t* param
     return ESP_OK;
 }
 
-esp_err_t euler_filter_butter_2order_low(euler_filter_t* filter, float* sample) {
+esp_err_t euler_filter_butter_2order_low(euler_filter_t* filter, double* sample) {
     if(!filter || !sample) {
         ESP_LOGE(TAG, "invalid arguments");
         return ESP_ERR_INVALID_ARG;

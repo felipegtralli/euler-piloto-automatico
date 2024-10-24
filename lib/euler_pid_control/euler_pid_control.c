@@ -12,12 +12,12 @@ static void calc_coeficients(euler_pid_params_t params, euler_pid_coeffs_t* coef
     coeffs->b2 = params.kd; // kd
 }
 
-static float cur_err_calc(float setpoint, float sample) {
+static float cur_err_calc(double setpoint, double sample) {
     return setpoint - sample;
 }
 
-static float pid_calc(euler_pid_coeffs_t* pid_coeffs, float sample) {
-    float output = 0.0;
+static double pid_calc(euler_pid_coeffs_t* pid_coeffs, double sample) {
+    double output = 0.0;
 
     /* calculate current error */
     pid_coeffs->err_0 = cur_err_calc(pid_coeffs->setpoint, sample);
@@ -55,7 +55,7 @@ esp_err_t euler_pid_init(euler_pid_control_t* pid, euler_pid_params_t* params) {
     return ESP_OK;
 }
 
-esp_err_t euler_pid_compute(euler_pid_control_t* pid, float sample, float* output) {
+esp_err_t euler_pid_compute(euler_pid_control_t* pid, double sample, double* output) {
     if(!pid || !output) {
         ESP_LOGE(TAG, "invalid arguments");
         return ESP_ERR_INVALID_ARG;

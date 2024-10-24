@@ -5,7 +5,7 @@
 #include "esp_log.h"
 #include "driver/gptimer.h"
 #include "driver/pulse_cnt.h"
-#include "bdc_motor.h"
+#include "driver/mcpwm.h"
 
 #include "euler_macros.h"
 #include "euler_filter.h"
@@ -13,6 +13,7 @@
 #include "euler_wifi.h"
 #include "euler_tasks.h"
 #include "euler_nvs_helper.h"
+#include "euler_bdc_motor.h"
 
 /* GLOBALS */
 static const char* TAG = "EULER-MAIN";
@@ -58,17 +59,22 @@ void app_main(void) {
     ctrl_ctx.filter = filter;
 
     /* initialize motor */
-    bdc_motor_config_t motor_config = {
-        .pwm_freq_hz = BDC_MCPWM_TIMER_FREQ,
-        .pwma_gpio_num = BDC_MOTOR_MCPWM_GPIOA,
-        .pwmb_gpio_num = BDC_MOTOR_MCPWM_GPIOB,
+    static euler_bdc_motor_t motor = {
+        .pwma = BDC_MOTOR_PWMA,
+        .pwmb = BDC_MOTOR_PWMB,
+        .unit = MCPWM_UNIT_0,
+        .timer = MCPWM_TIMER_0,
     };
-    bdc_motor_mcpwm_config_t mcpwm_config = {
-        .group_id = 0,
-        .resolution_hz = BDC_MCPWM_TIMER_RES,
+    ESP_ERROR_CHECK(euler_bdc_motor_gpio_init(&motor));
+
+    mcpwm_config_t pwm_config = {
+        .frequency = PWM_FREQ,
+        .cmpr_a = 0,
+        .cmpr_b = 0,
+        .duty_mode = MCPWM_DUTY_MODE_0,
+        .counter_mode = MCPWM_UP_COUNTER,
     };
-    bdc_motor_handle_t motor = NULL;
-    ESP_ERROR_CHECK(bdc_motor_new_mcpwm_device(&motor_config, &mcpwm_config, &motor));
+    ESP_ERROR_CHECK(mcpwm_init(motor.unit, motor.timer, &pwm_config));
     ctrl_ctx.motor = motor;
 
     /* initialize encoder */

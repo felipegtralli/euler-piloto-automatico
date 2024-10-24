@@ -30,15 +30,15 @@ void ctrl_task(void* pvParameters) {
         int real_pulses = cur_pulses - last_pulse;
         last_pulse = cur_pulses;
 
-        float sample = (float) euler_pulses2rpm(real_pulses);
+        double sample = euler_pulses2rpm(real_pulses);
 
         ESP_ERROR_CHECK(euler_filter_butter_2order_low(&ctx->filter, &sample));
 
-        float pid_output = 0.0;
+        double pid_output = 0.0;
         ESP_ERROR_CHECK(euler_pid_compute(&ctx->pid, sample, &pid_output));
 
-        uint32_t speed = map_rpm2pwm(pid_output, .0, ctx->pid._coeffs.max_output);
-        ESP_ERROR_CHECK(bdc_motor_set_speed(ctx->motor, speed));
+        double speed = map_rpm2pwm(pid_output, - (ctx->pid._coeffs.max_output), ctx->pid._coeffs.max_output);
+        euler_bdc_motor_set_speed(&ctx->motor, speed);
     }
 }
 
@@ -54,8 +54,6 @@ bool IRAM_ATTR ctrl_task_timer_handle(gptimer_handle_t timer, const gptimer_alar
 
 void tcp_server_task(void* pvParameters) {
     tcp_server_context_t* ctx = (tcp_server_context_t*) pvParameters;
-    char addr_str[128] = {0};
-    struct sockaddr_in dest_addr;
 
     esp_netif_ip_info_t ip_info;
     esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
@@ -66,9 +64,11 @@ void tcp_server_task(void* pvParameters) {
     }
     ESP_ERROR_CHECK(esp_netif_get_ip_info(netif, &ip_info));
 
-    dest_addr.sin_addr.s_addr = ip_info.ip.addr;
-    dest_addr.sin_family = AF_INET;
-    dest_addr.sin_port = htons(PORT);
+    struct sockaddr_in dest_addr = {
+        .sin_addr.s_addr = ip_info.ip.addr,
+        .sin_family = AF_INET,
+        .sin_port = htons(PORT),
+    };
 
     int listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
     if(listen_sock < 0) {
@@ -105,6 +105,7 @@ void tcp_server_task(void* pvParameters) {
             ESP_LOGE(SERVER_TAG, "failed to accept connection");
             break;
         }
+        char addr_str[128] = {0};
         inet_ntoa_r(((struct sockaddr_in*) &source_addr)->sin_addr, addr_str, sizeof(addr_str) - 1);    
         ESP_LOGI(SERVER_TAG, "accepted connection from %s", addr_str);
 

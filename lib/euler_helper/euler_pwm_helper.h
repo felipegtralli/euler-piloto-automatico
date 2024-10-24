@@ -3,6 +3,6 @@
 
 #include <stdint.h>
 
-uint32_t map_rpm2pwm(float val, float min, float max);
+double map_rpm2pwm(double val, double min, double max);
 
 #endif

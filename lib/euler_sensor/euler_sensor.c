@@ -5,12 +5,11 @@
 #include "driver/pulse_cnt.h"
 
 double euler_read_sensor() {
-    long r = rand() % 7000;
-    return (float) r;
+    return (float) (rand() % 6800);
 }
 
-float euler_pulses2rpm(int pulses) {
-    float rev =(float) pulses / ENCODER_PULSES_PER_REV;
+double euler_pulses2rpm(int pulses) {
+    double rev =(double) pulses / ENCODER_PULSES_PER_REV;
     
     return (rev / (1.0 / SAMPLING_INTERVAL_HZ)) * 60;
 }

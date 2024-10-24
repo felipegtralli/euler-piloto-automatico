@@ -17,17 +17,17 @@ typedef struct {
  * 
  */
 typedef struct {
-    float b0; // b0
-    float b1; // b1
-    float b2; // b2
-    float a1; // a1
-    float a2; // a2
-    float x0; // sample 0
-    float x1; // sample 1
-    float x2; // sample 2
-    float y0; // output 0
-    float y1; // output 1
-    float y2; // output 2
+    double b0; // b0
+    double b1; // b1
+    double b2; // b2
+    double a1; // a1
+    double a2; // a2
+    double x0; // sample 0
+    double x1; // sample 1
+    double x2; // sample 2
+    double y0; // output 0
+    double y1; // output 1
+    double y2; // output 2
 } euler_filter_coeffs_t;
 
 /**
@@ -59,7 +59,7 @@ esp_err_t euler_filter_init(euler_filter_t* filter, euler_filter_params_t* param
  *   - ESP_OK: butterworth filter applied successfully
  *   - ESP_ERR_INVALID_ARG: invalid arguments
  */
-esp_err_t euler_filter_butter_2order_low(euler_filter_t* filter, float* sample);
+esp_err_t euler_filter_butter_2order_low(euler_filter_t* filter, double* sample);
 
 /**
  * @brief Update euler filter parameters

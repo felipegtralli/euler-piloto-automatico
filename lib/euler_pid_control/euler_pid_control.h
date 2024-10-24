@@ -20,15 +20,15 @@ typedef struct {
  * 
  */
 typedef struct {
-    float b0; // kp + ki + kd
-    float b1; // -kp + ki - 2*kd
-    float b2; // kd
-    float err_0; // error (z)
-    float err_1; // error 1 (z^-1)
-    float err_2; // error 2 (z^-2)
-    float out_1; // output (z^-1)
-    float setpoint; // setpoint
-    float max_output; // max output (anti-windup)
+    double b0; // kp + ki + kd
+    double b1; // -kp + ki - 2*kd
+    double b2; // kd
+    double err_0; // error (z)
+    double err_1; // error 1 (z^-1)
+    double err_2; // error 2 (z^-2)
+    double out_1; // output (z^-1)
+    double setpoint; // setpoint
+    double max_output; // max output (anti-windup)
 } euler_pid_coeffs_t;
 
 /**
@@ -60,7 +60,7 @@ esp_err_t euler_pid_init(euler_pid_control_t* pid, euler_pid_params_t* params);
  *  - ESP_OK: PID compute successfully
  *  - ESP_ERR_INVALID_ARG: invalid arguments
  */
-esp_err_t euler_pid_compute(euler_pid_control_t* pid, float sample, float* output);
+esp_err_t euler_pid_compute(euler_pid_control_t* pid, double sample, double* output);
 
 /**
  * @brief update PID control configuration

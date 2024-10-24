@@ -2,7 +2,7 @@
 
 #include "euler_macros.h"
 
-static float constrain(float x, float min, float max) {
+static double constrain(double x, double min, double max) {
     if(x > max) {
         return max;
     } else if(x < min) {
@@ -12,9 +12,7 @@ static float constrain(float x, float min, float max) {
     }
 }
 
-uint32_t map_rpm2pwm(float val, float min, float max) {
+double map_rpm2pwm(double val, double min, double max) {
     val = constrain(val, min, max);
-    float d = (val / max) * 100;
-
-    return (d / 100) * BDC_MCPWM_DUTY_TICK_MAX;
+    return (val / max) * 100;
 }   
