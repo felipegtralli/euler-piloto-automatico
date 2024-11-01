@@ -7,11 +7,11 @@
 #include "nvs_flash.h"
 
 esp_err_t nvs_get_pid_params(const char* key, euler_pid_params_t* params);
-esp_err_t nvs_get_filter_params(const char* key, euler_filter_params_t* params);
+esp_err_t nvs_get_filter_config(const char* key, euler_filter_config_t* config);
 esp_err_t nvs_get_wifi_config(const char* key, wifi_config_t* cfg);
 
 esp_err_t nvs_set_pid_params(const char* key, euler_pid_params_t* params);
-esp_err_t nvs_set_filter_params(const char* key, euler_filter_params_t* params);
+esp_err_t nvs_set_filter_config(const char* key, euler_filter_config_t* config);
 esp_err_t nvs_set_wifi_config(const char* key, wifi_config_t* cfg);
 
 #endif // EULER_NVS_HELPER_H

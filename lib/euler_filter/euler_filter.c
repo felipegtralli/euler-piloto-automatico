@@ -7,65 +7,48 @@
 
 static const char* TAG = "EULER-FILTER";
 
-static void calc_coeficients(euler_filter_params_t params, euler_filter_coeffs_t* filter_coeffs) {
-    /* frequency ratio */
-    double ff = params.cutoff / params.fs;
-
-    const double ita = 1.0 / tan(M_PI * ff);
-    const double q = sqrt(2.0);
-
-    /* coeficients */ 
-    filter_coeffs->b0 = 1.0 / (1.0 + q*ita + ita * ita);
-    filter_coeffs->b1 = 2 * filter_coeffs->b0;
-    filter_coeffs->b2 = filter_coeffs->b0;
-    filter_coeffs->a1 = - (2.0 * (ita * ita - 1.0) * filter_coeffs->b0);
-    filter_coeffs->a2 = - (- (1.0 - q * ita + ita * ita) * filter_coeffs->b0);
+static double calc_alpha(size_t n) {
+    return 2.0 / (n + 1);
 }
 
-static double calc_butter_2order_low(euler_filter_coeffs_t* filter_coeffs, float sample) {
-    /* shifiting samples */
-    filter_coeffs->x2 = filter_coeffs->x1;
-    filter_coeffs->x1 = filter_coeffs->x0;
-    filter_coeffs->x0 = sample;
-
-    /* calculates output */
-    /* Y(z) = b0 * X(z) + b1 * X(z^-1) + b2 * X(z^-2) - a1 * Y(z^-1) - a2 * Y(z^-2) */
-    filter_coeffs->y0 = filter_coeffs->b0 * filter_coeffs->x0
-                + filter_coeffs->b1 * filter_coeffs->x1
-                + filter_coeffs->b2 * filter_coeffs->x2
-                - filter_coeffs->a1 * filter_coeffs->y1 
-                - filter_coeffs->a2 * filter_coeffs->y2;
+static double calc_exp_mov_avg(euler_filter_t* filter, double sample) {
+    double new_avg = filter->_alpha * sample + (1 - filter->_alpha) * filter->_cur_value;
     
-    /* shifiting output */
-    filter_coeffs->y2 = filter_coeffs->y1;
-    filter_coeffs->y1 = filter_coeffs->y0;
-
-    return filter_coeffs->y0;
+    if(new_avg > filter->_max) {
+        return filter->_max;
+    } else if(new_avg < filter->_min) {
+        return filter->_min;
+    } else {
+        return new_avg;
+    }
 }
 
-esp_err_t euler_filter_init(euler_filter_t* filter, euler_filter_params_t* params) {
+esp_err_t euler_filter_init(euler_filter_t* filter, euler_filter_config_t* config) {
+    if(!filter || !config) {
+        ESP_LOGE(TAG, "invalid arguments");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    filter->_alpha = calc_alpha(config->n);
+    filter->_cur_value = 0.0;
+    filter->_max = config->max;
+    filter->_min = config->min;
+
+    return ESP_OK;
+}
+
+esp_err_t euler_filter_exp_mov_avg(euler_filter_t* filter, double* sample) {
     if(!filter) {
         ESP_LOGE(TAG, "invalid arguments");
         return ESP_ERR_INVALID_ARG;
     }
 
-    bzero(&filter->_coeffs, sizeof(euler_filter_coeffs_t));
-    calc_coeficients(*params, &filter->_coeffs);
+    filter->_cur_value = calc_exp_mov_avg(filter, *sample);
+    *sample = filter->_cur_value;
 
     return ESP_OK;
 }
 
-esp_err_t euler_filter_butter_2order_low(euler_filter_t* filter, double* sample) {
-    if(!filter || !sample) {
-        ESP_LOGE(TAG, "invalid arguments");
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    *sample = calc_butter_2order_low(&filter->_coeffs, *sample);
-
-    return ESP_OK;
-}
-
-esp_err_t euler_filter_update(euler_filter_t* filter, euler_filter_params_t* params) {
-    return euler_filter_init(filter, params);
+esp_err_t euler_filter_update(euler_filter_t* filter, euler_filter_config_t* config) {
+    return euler_filter_init(filter, config);
 }

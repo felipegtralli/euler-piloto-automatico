@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "euler_filter.h": "c"
+        "euler_filter.h": "c",
+        "pulse_cnt.h": "c"
     }
 }

@@ -4,23 +4,24 @@
 #include "euler_pid_control.h"
 #include "euler_filter.h"
 #include "euler_bdc_motor.h"
+#include "euler_sensor.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gptimer.h"
-#include "driver/pulse_cnt.h"
 #include "driver/mcpwm.h"
+#include "driver/pcnt.h"
 
 /**
  * @brief Control loop context
  * 
  */
 typedef struct {
-    euler_pid_control_t pid;
+    euler_pid_control_t* pid;
     euler_pid_params_t pid_params;
-    euler_filter_t filter;
-    euler_bdc_motor_t motor;
-    pcnt_unit_handle_t encoder;
+    euler_filter_t* filter;
+    euler_bdc_motor_t* motor;
+    pcnt_unit_t encoder_unit;
 } ctrl_loop_context_t;
 
 /**

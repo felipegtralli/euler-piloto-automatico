@@ -6,37 +6,33 @@
 
 static const char* TAG = "EULER-PID";
 
-static void calc_coeficients(euler_pid_params_t params, euler_pid_coeffs_t* coeffs) {
-    coeffs->b0 = params.kp + params.ki + params.kd; // kp + ki + kd
-    coeffs->b1 = -params.kp + params.ki - 2*params.kd; // -kp + ki - 2*kd
-    coeffs->b2 = params.kd; // kd
-}
-
 static float cur_err_calc(double setpoint, double sample) {
     return setpoint - sample;
 }
 
-static double pid_calc(euler_pid_coeffs_t* pid_coeffs, double sample) {
+static double pid_calc_inc(euler_pid_control_t* pid, double sample) {
     double output = 0.0;
 
-    /* calculate current error */
-    pid_coeffs->err_0 = cur_err_calc(pid_coeffs->setpoint, sample);
+    /* calculate error */
+    double err = cur_err_calc(pid->_setpoint, sample);
 
-    /* calculate output by 2P2Z PID */
-    /* U(z) = E(z) * b0 + E(z) * b1 * z^-1 + E(z) * b2 * z^-2 - U(z) * a1 * z^-1 */
-    output = (pid_coeffs->b0 * pid_coeffs->err_0) 
-            + (pid_coeffs->b1 * pid_coeffs->err_1) 
-            + (pid_coeffs->b2 * pid_coeffs->err_2) 
-            + (- pid_coeffs->out_1);
+    /* calculate output by PID incremental */
+    /* dU(z) = Kp * (1 - z^-1)E(z) + Ki * E(z) + Kd * (1 - 2z^-1 + z^-2)E(z) */
+    output = pid->_kp * (err - pid->_prev_err1) + 
+             pid->_ki * err +
+             pid->_kd * (err - 2 * pid->_prev_err1 + pid->_prev_err2) +
+             pid->_last_output;
 
     /* anti-windup */
-    output = (output > pid_coeffs->max_output) ? pid_coeffs->max_output : output;
-    output = (output < - pid_coeffs->max_output) ? - pid_coeffs->max_output : output;
+    output = (output > pid->_max_output) ? pid->_max_output : output;
+    output = (output < -pid->_max_output) ? -pid->_max_output : output;
 
-    /* update variables */
-    pid_coeffs->err_2 = pid_coeffs->err_1;
-    pid_coeffs->err_1 = pid_coeffs->err_0;
-    pid_coeffs->out_1 = output;
+    /* update errors */
+    pid->_prev_err2 = pid->_prev_err1;
+    pid->_prev_err1 = err;
+
+    /* update last output */
+    pid->_last_output = output;
     
     return output;
 }
@@ -47,10 +43,14 @@ esp_err_t euler_pid_init(euler_pid_control_t* pid, euler_pid_params_t* params) {
         return ESP_ERR_INVALID_ARG;
     }
 
-    bzero(&pid->_coeffs, sizeof(euler_pid_coeffs_t));
-    calc_coeficients(*params, &pid->_coeffs);
-    pid->_coeffs.setpoint = params->setpoint;
-    pid->_coeffs.max_output = params->max_output;
+    pid->_kp = params->kp;
+    pid->_ki = params->ki;
+    pid->_kd = params->kd;
+    pid->_setpoint = params->setpoint;
+    pid->_max_output = params->max_output;
+    pid->_prev_err1 = 0.0;
+    pid->_prev_err2 = 0.0;
+    pid->_last_output = 0.0;
 
     return ESP_OK;
 }
@@ -61,7 +61,7 @@ esp_err_t euler_pid_compute(euler_pid_control_t* pid, double sample, double* out
         return ESP_ERR_INVALID_ARG;
     }
 
-    *output = pid_calc(&pid->_coeffs, sample);
+    *output = pid_calc_inc(pid, sample);
 
     return ESP_OK;
 }

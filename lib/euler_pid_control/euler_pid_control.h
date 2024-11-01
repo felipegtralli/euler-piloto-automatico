@@ -16,27 +16,18 @@ typedef struct {
 } euler_pid_params_t;
 
 /**
- * @brief PID control coefficients
- * 
- */
-typedef struct {
-    double b0; // kp + ki + kd
-    double b1; // -kp + ki - 2*kd
-    double b2; // kd
-    double err_0; // error (z)
-    double err_1; // error 1 (z^-1)
-    double err_2; // error 2 (z^-2)
-    double out_1; // output (z^-1)
-    double setpoint; // setpoint
-    double max_output; // max output (anti-windup)
-} euler_pid_coeffs_t;
-
-/**
  * @brief PID control structure
  * 
  */
 typedef struct {
-    euler_pid_coeffs_t _coeffs; // PID coefficients
+    double _kp;
+    double _ki;
+    double _kd;
+    double _setpoint;
+    double _max_output;
+    double _prev_err1;
+    double _prev_err2;
+    double _last_output;
 } euler_pid_control_t;
 
 /**

@@ -2,7 +2,7 @@
 
 #include "euler_macros.h"
 
-static double constrain(double x, double min, double max) {
+double constrain(double x, double min, double max) {
     if(x > max) {
         return max;
     } else if(x < min) {
@@ -12,7 +12,7 @@ static double constrain(double x, double min, double max) {
     }
 }
 
-double map_rpm2pwm(double val, double min, double max) {
+double map_2pwm(double val, double min, double max) {
     val = constrain(val, min, max);
     return (val / max) * 100;
 }   

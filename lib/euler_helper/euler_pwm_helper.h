@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
-double map_rpm2pwm(double val, double min, double max);
+double constrain(double x, double min, double max);
+double map_2pwm(double val, double min, double max);
 
 #endif

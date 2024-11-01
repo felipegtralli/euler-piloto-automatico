@@ -4,8 +4,8 @@
 #include "nvs_flash.h"
 #include "esp_log.h"
 #include "driver/gptimer.h"
-#include "driver/pulse_cnt.h"
 #include "driver/mcpwm.h"
+#include "driver/pcnt.h"
 
 #include "euler_macros.h"
 #include "euler_filter.h"
@@ -45,18 +45,18 @@ void app_main(void) {
 
     static euler_pid_control_t pid;
     ESP_ERROR_CHECK(euler_pid_init(&pid, &pid_params));
-    ctrl_ctx.pid = pid;
+    ctrl_ctx.pid = &pid;
     ctrl_ctx.pid_params = pid_params;
     server_ctx.pid_params = pid_params;
 
-    /* initialize butterworth filter */
+    /* initialize ema filter */
     /* read params from nvs */
-    euler_filter_params_t filter_params = {0};
-    ESP_ERROR_CHECK(nvs_get_filter_params(FILTER_NVS_PARAMS, &filter_params));
+    euler_filter_config_t filter_config = {0};
+    ESP_ERROR_CHECK(nvs_get_filter_config(FILTER_NVS_CONFIG, &filter_config));
 
-    static euler_filter_t filter;
-    ESP_ERROR_CHECK(euler_filter_init(&filter, &filter_params));
-    ctrl_ctx.filter = filter;
+    static euler_filter_t filter = {0};
+    ESP_ERROR_CHECK(euler_filter_init(&filter, &filter_config));
+    ctrl_ctx.filter = &filter;
 
     /* initialize motor */
     static euler_bdc_motor_t motor = {
@@ -75,29 +75,25 @@ void app_main(void) {
         .counter_mode = MCPWM_UP_COUNTER,
     };
     ESP_ERROR_CHECK(mcpwm_init(motor.unit, motor.timer, &pwm_config));
-    ctrl_ctx.motor = motor;
+    ctrl_ctx.motor = &motor;
 
     /* initialize encoder */
-    pcnt_unit_config_t unit_config = {
-        .high_limit = ENCODER_HIGH_LIMIT,
-        .low_limit = ENCODER_LOW_LIMIT,
-        .flags.accum_count = true,
+    pcnt_config_t pcnt_config = {
+        .pulse_gpio_num = ENCODER_GPIO,    
+        .ctrl_gpio_num = PCNT_PIN_NOT_USED, 
+        .channel = PCNT_CHANNEL_0,
+        .unit = PCNT_UNIT_0,
+        .pos_mode = PCNT_COUNT_INC,
+        .neg_mode = PCNT_COUNT_DIS,    
+        .lctrl_mode = PCNT_MODE_KEEP,    
+        .hctrl_mode = PCNT_MODE_KEEP,   
+        .counter_h_lim = ENCODER_HIGH_LIMIT,         
+        .counter_l_lim = ENCODER_LOW_LIMIT, 
     };
-    pcnt_unit_handle_t pcnt_unit = NULL;
-    ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &pcnt_unit));
-
-    pcnt_chan_config_t chan_cfg = {
-        .edge_gpio_num = ENCODER_GPIO,
-        .level_gpio_num = -1,
-    };
-    pcnt_channel_handle_t pcnt_chan = NULL;
-    ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_cfg, &pcnt_chan));
-
-    ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_DECREASE));
-    ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
-    ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
-    ESP_ERROR_CHECK(pcnt_unit_start(pcnt_unit));
-    ctrl_ctx.encoder = pcnt_unit;
+    pcnt_unit_config(&pcnt_config);
+    pcnt_counter_pause(PCNT_UNIT_0);
+    pcnt_counter_clear(PCNT_UNIT_0);
+    pcnt_counter_resume(PCNT_UNIT_0);
 
     /* initialize wifi access point */
     euler_wifi_init_ap();

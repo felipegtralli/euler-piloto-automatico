@@ -20,25 +20,19 @@ void ctrl_task(void* pvParameters) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
         if(xQueueReceive(update_ctrl_queue, &ctx->pid_params, 0) == pdTRUE) {
-            ESP_ERROR_CHECK(euler_pid_update_config(&ctx->pid, &ctx->pid_params));
+            ESP_ERROR_CHECK(euler_pid_update_config(ctx->pid, &ctx->pid_params));
             ESP_LOGI(CTRL_TAG, "pid params updated");
         }
 
-        static int last_pulse = 0;
-        int cur_pulses = 0;
-        ESP_ERROR_CHECK(pcnt_unit_get_count(ctx->encoder, &cur_pulses));
-        int real_pulses = cur_pulses - last_pulse;
-        last_pulse = cur_pulses;
+        double sample_pulses = (double) euler_encoder_get_pulses(ctx->encoder_unit);
 
-        double sample = euler_pulses2rpm(real_pulses);
-
-        ESP_ERROR_CHECK(euler_filter_butter_2order_low(&ctx->filter, &sample));
+        ESP_ERROR_CHECK(euler_filter_exp_mov_avg(ctx->filter, &sample_pulses));
 
         double pid_output = 0.0;
-        ESP_ERROR_CHECK(euler_pid_compute(&ctx->pid, sample, &pid_output));
+        ESP_ERROR_CHECK(euler_pid_compute(ctx->pid, sample_pulses, &pid_output));
 
-        double speed = map_rpm2pwm(pid_output, - (ctx->pid._coeffs.max_output), ctx->pid._coeffs.max_output);
-        euler_bdc_motor_set_speed(&ctx->motor, speed);
+        double duty_cycle = map_2pwm(pid_output, - (ctx->pid->_max_output), ctx->pid->_max_output);
+        euler_bdc_motor_set_speed(ctx->motor, duty_cycle);
     }
 }
 

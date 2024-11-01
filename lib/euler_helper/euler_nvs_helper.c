@@ -17,9 +17,10 @@ static void use_default_pid(euler_pid_params_t* params) {
     params->max_output = 7000.0;
 }
 
-static void use_default_filter(euler_filter_params_t* params) {
-    params->cutoff = 233.33;
-    params->fs = SAMPLING_INTERVAL_HZ;
+static void use_default_filter(euler_filter_config_t* config) {
+    config->n = 20;
+    config->max = ENCODER_HIGH_LIMIT;
+    config->min = ENCODER_LOW_LIMIT;
 }
 
 static void use_default_wifi(wifi_config_t* cfg) {
@@ -61,22 +62,22 @@ esp_err_t nvs_get_pid_params(const char* key, euler_pid_params_t* params) {
     return err;
 }
 
-esp_err_t nvs_get_filter_params(const char* key, euler_filter_params_t* params) {
+esp_err_t nvs_get_filter_config(const char* key, euler_filter_config_t* config) {
     nvs_handle_t nvs_handle;
     esp_err_t err = nvs_open(FILTER_NVS_STORAGE, NVS_READWRITE, &nvs_handle);
     if(err != ESP_OK) {
         return err;
     }
 
-    size_t required_size = sizeof(*params);
-    err = nvs_get_blob(nvs_handle, key, params, &required_size);
+    size_t required_size = sizeof(*config);
+    err = nvs_get_blob(nvs_handle, key, config, &required_size);
     switch(err) {
         case ESP_OK:
-            ESP_LOGI(TAG, "filter params found");
+            ESP_LOGI(TAG, "filter config found");
             break;
         case ESP_ERR_NVS_NOT_FOUND:
-            ESP_LOGW(TAG, "filter params not found... using default values");
-            use_default_filter(params);
+            ESP_LOGW(TAG, "filter config not found... using default values");
+            use_default_filter(config);
             err = ESP_OK;
             break;
         default:
@@ -138,15 +139,15 @@ ERROR:
     return err;
 }
 
-esp_err_t nvs_set_filter_params(const char* key, euler_filter_params_t* params) {
+esp_err_t nvs_set_filter_config(const char* key, euler_filter_config_t* config) {
     nvs_handle_t nvs_handle;
     esp_err_t err = nvs_open(FILTER_NVS_STORAGE, NVS_READWRITE, &nvs_handle);
     if(err != ESP_OK) {
         return err;
     }
 
-    size_t required_size = sizeof(*params);
-    err = nvs_set_blob(nvs_handle, key, params, required_size);
+    size_t required_size = sizeof(*config);
+    err = nvs_set_blob(nvs_handle, key, config, required_size);
     if(err != ESP_OK) {
         goto ERROR;
     } else {
