@@ -14,13 +14,13 @@
 
 /* ENCODER */
 #define ENCODER_GPIO 19
-#define ENCODER_HIGH_LIMIT 40
-#define ENCODER_LOW_LIMIT -40
+#define ENCODER_HIGH_LIMIT 80
+#define ENCODER_LOW_LIMIT 0
 #define ENCODER_PULSES_PER_REV 5
 
 /* PWM */
 #define BDC_MOTOR_PWMA 5
 #define BDC_MOTOR_PWMB 18
-#define PWM_FREQ 20000 // 10kHz
+#define PWM_FREQ 20000 // 20kHz
 
 #endif

@@ -33,6 +33,12 @@ typedef struct {
 } tcp_server_context_t;
 
 /**
+ * @brief Monitor flag type
+ * 
+ */
+typedef bool monitor_flag_t;
+
+/**
  * @brief Control loop task
  * 
  * @param pvParameters control loop context

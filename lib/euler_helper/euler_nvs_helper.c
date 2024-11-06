@@ -13,8 +13,9 @@ static void use_default_pid(euler_pid_params_t* params) {
     params->kp = 5.0;
     params->ki = 3.0;
     params->kd = 1.5;
-    params->setpoint = 3500.0;
-    params->max_output = 7000.0;
+    params->setpoint = ENCODER_HIGH_LIMIT / 4;
+    params->max_output = ENCODER_HIGH_LIMIT;
+    params->min_output = ENCODER_LOW_LIMIT;
 }
 
 static void use_default_filter(euler_filter_config_t* config) {

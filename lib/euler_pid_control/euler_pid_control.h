@@ -13,6 +13,7 @@ typedef struct {
     float kd; // kd
     float setpoint; // setpoint
     float max_output; // max output (anti-windup)
+    float min_output; // min output (anti-windup)
 } euler_pid_params_t;
 
 /**
@@ -25,6 +26,7 @@ typedef struct {
     double _kd;
     double _setpoint;
     double _max_output;
+    double _min_output;
     double _prev_err1;
     double _prev_err2;
     double _last_output;

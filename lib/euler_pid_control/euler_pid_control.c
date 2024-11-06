@@ -25,7 +25,7 @@ static double pid_calc_inc(euler_pid_control_t* pid, double sample) {
 
     /* anti-windup */
     output = (output > pid->_max_output) ? pid->_max_output : output;
-    output = (output < -pid->_max_output) ? -pid->_max_output : output;
+    output = (output < pid->_min_output) ? pid->_min_output : output;
 
     /* update errors */
     pid->_prev_err2 = pid->_prev_err1;

@@ -12,6 +12,7 @@ static double calc_alpha(size_t n) {
 }
 
 static double calc_exp_mov_avg(euler_filter_t* filter, double sample) {
+    /* Y(z) = aX(z) + (1 - a) - z^-1Y(z) */
     double new_avg = filter->_alpha * sample + (1 - filter->_alpha) * filter->_cur_value;
     
     if(new_avg > filter->_max) {

@@ -18,8 +18,15 @@
 
 #define PORT 8080
 
+typedef struct {
+    euler_pid_control_t* pid;
+    double pulses;
+    double duty_cycle;
+} euler_monitor_t;
+
 /**
  * @brief Receive data from tcp client
+ * 
  */
 bool euler_receive_data(int sock, euler_pid_params_t* pid_params);
 

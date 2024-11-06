@@ -11,6 +11,9 @@ static const char* SERVER_TAG = "SERVER";
 
 extern TaskHandle_t ctrl_task_handle;
 extern QueueHandle_t update_ctrl_queue;
+extern QueueHandle_t monitor_queue;
+
+monitor_flag_t monitor_flag = false;
 
 void ctrl_task(void* pvParameters) {
     ctrl_loop_context_t* ctx = (ctrl_loop_context_t*) pvParameters;
@@ -31,8 +34,19 @@ void ctrl_task(void* pvParameters) {
         double pid_output = 0.0;
         ESP_ERROR_CHECK(euler_pid_compute(ctx->pid, sample_pulses, &pid_output));
 
-        double duty_cycle = map_2pwm(pid_output, - (ctx->pid->_max_output), ctx->pid->_max_output);
+        double duty_cycle = map_2pwm(pid_output, ctx->pid->_min_output, ctx->pid->_max_output);
         euler_bdc_motor_set_speed(ctx->motor, duty_cycle);
+
+        ESP_LOGI(CTRL_TAG, "pulsos: %.2f", sample_pulses);
+
+        if(monitor_flag) {
+            euler_monitor_t monitor = {
+                .pid = ctx->pid,
+                .pulses = sample_pulses,
+                .duty_cycle = duty_cycle,
+            };
+            xQueueSend(monitor_queue, &monitor, 0);
+        }
     }
 }
 
