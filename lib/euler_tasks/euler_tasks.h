@@ -25,12 +25,11 @@ typedef struct {
 } ctrl_loop_context_t;
 
 /**
- * @brief Server communication context
- * 
+ * @brief Restful server context
  */
 typedef struct {
     euler_pid_params_t pid_params;
-} tcp_server_context_t;
+} restful_server_context_t;
 
 /**
  * @brief Monitor flag type
@@ -52,10 +51,10 @@ void ctrl_task(void* pvParameters);
 bool ctrl_task_timer_handle(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx);
 
 /**
- * @brief Tcp server task
+ * @brief Restful server task
  * 
- * @param pvParameters server communication context
+ * @param pvParameters restful server context
  */
-void tcp_server_task(void* pvParameters);
+void restful_server_task(void* pvParameters);
 
 #endif      // EULER_TASKS.H

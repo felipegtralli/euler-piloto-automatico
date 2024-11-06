@@ -14,14 +14,12 @@
 #include "euler_tasks.h"
 #include "euler_nvs_helper.h"
 #include "euler_bdc_motor.h"
-#include "euler_server.h"
 
 /* GLOBALS */
 static const char* TAG = "EULER-MAIN";
 
 TaskHandle_t ctrl_task_handle;
 QueueHandle_t update_ctrl_queue;
-QueueHandle_t monitor_queue;
 
 void app_main(void) {
     /**** SETUP ****/
@@ -37,8 +35,8 @@ void app_main(void) {
     /* define control loop context */
     static ctrl_loop_context_t ctrl_ctx = {0};
 
-    /* define server comm context */
-    static tcp_server_context_t server_ctx = {0};
+    /* define restful context */
+    static restful_server_context_t restful_ctx = {0};
 
     /* initialize pid control */
     /* read params from nvs */
@@ -49,14 +47,14 @@ void app_main(void) {
     ESP_ERROR_CHECK(euler_pid_init(&pid, &pid_params));
     ctrl_ctx.pid = &pid;
     ctrl_ctx.pid_params = pid_params;
-    server_ctx.pid_params = pid_params;
+    restful_ctx.pid_params = pid_params;
 
     /* initialize ema filter */
     /* read params from nvs */
     euler_filter_config_t filter_config = {0};
     ESP_ERROR_CHECK(nvs_get_filter_config(FILTER_NVS_CONFIG, &filter_config));
 
-    static euler_filter_t filter = {0};
+    static euler_filter_t filter;
     ESP_ERROR_CHECK(euler_filter_init(&filter, &filter_config));
     ctrl_ctx.filter = &filter;
 
@@ -139,13 +137,6 @@ void app_main(void) {
     ESP_ERROR_CHECK(gptimer_enable(timer));
     ESP_ERROR_CHECK(gptimer_start(timer));
 
-    /* initialize monitor queue */
-    monitor_queue = xQueueCreate(5, sizeof(euler_monitor_t));
-    if(!monitor_queue) {
-        ESP_LOGE(TAG, "failed to create monitor queue");
-        return;
-    }
-
-    /* start tcp server task */
-    xTaskCreate(tcp_server_task, "tcp_server_task", 4096, &server_ctx, 1, NULL);
+    /* create restful server task */
+    xTaskCreate(restful_server_task, "restful_server_task", 4096, &restful_ctx, 1, NULL);
 }

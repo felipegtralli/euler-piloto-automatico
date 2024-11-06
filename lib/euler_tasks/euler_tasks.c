@@ -1,7 +1,7 @@
 #include "euler_tasks.h"
 #include "euler_sensor.h"
 #include "euler_wifi.h"
-#include "euler_server.h"
+#include "euler_restful_server.h"
 #include "euler_pwm_helper.h"
 
 #include "esp_log.h"
@@ -9,11 +9,10 @@
 static const char* CTRL_TAG = "MAIN-CTRL";
 static const char* SERVER_TAG = "SERVER";
 
+static euler_monitor_t monitor = {0};
+
 extern TaskHandle_t ctrl_task_handle;
 extern QueueHandle_t update_ctrl_queue;
-extern QueueHandle_t monitor_queue;
-
-monitor_flag_t monitor_flag = false;
 
 void ctrl_task(void* pvParameters) {
     ctrl_loop_context_t* ctx = (ctrl_loop_context_t*) pvParameters;
@@ -25,6 +24,9 @@ void ctrl_task(void* pvParameters) {
         if(xQueueReceive(update_ctrl_queue, &ctx->pid_params, 0) == pdTRUE) {
             ESP_ERROR_CHECK(euler_pid_update_config(ctx->pid, &ctx->pid_params));
             ESP_LOGI(CTRL_TAG, "pid params updated");
+            printf("kp: %f\nki: %f\nkd: %f\nsetpoint: %f\nmax_output: %f\nmin_output: %f\n",
+                ctx->pid_params.kp, ctx->pid_params.ki, ctx->pid_params.kd,
+                ctx->pid_params.setpoint, ctx->pid_params.max_output, ctx->pid_params.min_output);
         }
 
         double sample_pulses = (double) euler_encoder_get_pulses(ctx->encoder_unit);
@@ -37,16 +39,10 @@ void ctrl_task(void* pvParameters) {
         double duty_cycle = map_2pwm(pid_output, ctx->pid->_min_output, ctx->pid->_max_output);
         euler_bdc_motor_set_speed(ctx->motor, duty_cycle);
 
-        ESP_LOGI(CTRL_TAG, "pulsos: %.2f", sample_pulses);
-
-        if(monitor_flag) {
-            euler_monitor_t monitor = {
-                .pid = ctx->pid,
-                .pulses = sample_pulses,
-                .duty_cycle = duty_cycle,
-            };
-            xQueueSend(monitor_queue, &monitor, 0);
-        }
+        monitor.pid = ctx->pid;
+        monitor.pulses = sample_pulses;
+        monitor.duty_cycle = duty_cycle;
+        monitor.rpm = euler_pulses2rpm(sample_pulses);
     }
 }
 
@@ -60,70 +56,43 @@ bool IRAM_ATTR ctrl_task_timer_handle(gptimer_handle_t timer, const gptimer_alar
     return false;
 }
 
-void tcp_server_task(void* pvParameters) {
-    tcp_server_context_t* ctx = (tcp_server_context_t*) pvParameters;
+void restful_server_task(void* pvParameters) {
+    restful_server_context_t* ctx = (restful_server_context_t*) pvParameters;
 
-    esp_netif_ip_info_t ip_info;
-    esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
-    if(!netif) {
-        ESP_LOGE(SERVER_TAG, "netif failed");
-        vTaskDelete(NULL);
-        return;
-    }
-    ESP_ERROR_CHECK(esp_netif_get_ip_info(netif, &ip_info));
+    httpd_handle_t server = NULL;
+    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
 
-    struct sockaddr_in dest_addr = {
-        .sin_addr.s_addr = ip_info.ip.addr,
-        .sin_family = AF_INET,
-        .sin_port = htons(PORT),
+    ESP_LOGI(SERVER_TAG, "starting server on port: %d", config.server_port);
+    ESP_ERROR_CHECK(httpd_start(&server, &config));
+
+    httpd_uri_t root_uri = {
+        .uri = "/",
+        .method = HTTP_GET,
+        .handler = root_get_handler,
+        .user_ctx = NULL,
     };
+    httpd_register_uri_handler(server, &root_uri);
 
-    int listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-    if(listen_sock < 0) {
-        ESP_LOGE(SERVER_TAG, "failed to create socket");
-        vTaskDelete(NULL);
-        return;
-    }
-    int opt = 1;
-    setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-    ESP_LOGI(SERVER_TAG, "socket created");
+    httpd_uri_t monitor_uri = {
+        .uri = "/api/monitor",
+        .method = HTTP_GET,
+        .handler = monitor_get_handler,
+        .user_ctx = (void*) &monitor,
+    };
+    httpd_register_uri_handler(server, &monitor_uri);
 
-    if(bind(listen_sock, (struct sockaddr*) &dest_addr, sizeof(dest_addr)) != 0) {
-        ESP_LOGE(SERVER_TAG, "failed to bind socket");
-        goto CLEAN_UP;
-    } else {
-        char ip[32] = {0};
-        snprintf(ip, sizeof(ip) - 1, IPSTR, IP2STR(&ip_info.ip));
-        ESP_LOGI(SERVER_TAG, "socket bound ip: %s port %d", ip, PORT);
-    }
-
-    if(listen(listen_sock, 1) != 0) {
-        ESP_LOGE(SERVER_TAG, "failed to listen on socket");
-        goto CLEAN_UP;
-    }
+    httpd_uri_t pid_uri = {
+        .uri = "/api/pid",
+        .method = HTTP_PUT,
+        .handler = pid_put_handler,
+        .user_ctx = (void*) &ctx->pid_params,
+    };
+    httpd_register_uri_handler(server, &pid_uri);
 
     while(true) {
-        ESP_LOGI(SERVER_TAG, "waiting for connection...");
-
-        struct sockaddr_in source_addr;
-        socklen_t len = sizeof(source_addr);
-
-        int sock = accept(listen_sock, (struct sockaddr*) &source_addr, &len);
-        if(sock < 0) {
-            ESP_LOGE(SERVER_TAG, "failed to accept connection");
-            break;
-        }
-        char addr_str[128] = {0};
-        inet_ntoa_r(((struct sockaddr_in*) &source_addr)->sin_addr, addr_str, sizeof(addr_str) - 1);    
-        ESP_LOGI(SERVER_TAG, "accepted connection from %s", addr_str);
-
-        while(euler_receive_data(sock, &ctx->pid_params));
-
-        shutdown(sock, 0);
-        close(sock);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 
-CLEAN_UP:
-    close(listen_sock);
+    httpd_stop(server);
     vTaskDelete(NULL);
 }
