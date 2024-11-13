@@ -10,8 +10,8 @@
 static const char* TAG = "NVS-HELPER";
 
 static void use_default_pid(euler_pid_params_t* params) {
-    params->kp = 5.0;
-    params->ki = 3.0;
+    params->kp = 4.0;
+    params->ki = 0.35;
     params->kd = 1.5;
     params->setpoint = ENCODER_HIGH_LIMIT / 4;
     params->max_output = ENCODER_HIGH_LIMIT;

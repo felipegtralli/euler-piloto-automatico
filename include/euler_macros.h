@@ -23,4 +23,7 @@
 #define BDC_MOTOR_PWMB 18
 #define PWM_FREQ 20000 // 20kHz
 
+/* LED */
+#define LED1_PIN 0
+
 #endif

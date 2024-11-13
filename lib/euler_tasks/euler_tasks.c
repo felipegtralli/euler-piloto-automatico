@@ -24,9 +24,6 @@ void ctrl_task(void* pvParameters) {
         if(xQueueReceive(update_ctrl_queue, &ctx->pid_params, 0) == pdTRUE) {
             ESP_ERROR_CHECK(euler_pid_update_config(ctx->pid, &ctx->pid_params));
             ESP_LOGI(CTRL_TAG, "pid params updated");
-            printf("kp: %f\nki: %f\nkd: %f\nsetpoint: %f\nmax_output: %f\nmin_output: %f\n",
-                ctx->pid_params.kp, ctx->pid_params.ki, ctx->pid_params.kd,
-                ctx->pid_params.setpoint, ctx->pid_params.max_output, ctx->pid_params.min_output);
         }
 
         double sample_pulses = (double) euler_encoder_get_pulses(ctx->encoder_unit);

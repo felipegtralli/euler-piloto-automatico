@@ -122,7 +122,7 @@ void app_main(void) {
     /* configure loop to SAMPLING_INTERVAL_MS */
     gptimer_alarm_config_t alarm_config = {
         .reload_count = 0,
-        .alarm_count = (1.0 / SAMPLING_INTERVAL_HZ) * 1000000, // alarm every 1.667ms
+        .alarm_count = (1.0 / SAMPLING_INTERVAL_HZ) * 1000000,
         .flags.auto_reload_on_alarm = true,
     };
     ESP_ERROR_CHECK(gptimer_set_alarm_action(timer, &alarm_config));

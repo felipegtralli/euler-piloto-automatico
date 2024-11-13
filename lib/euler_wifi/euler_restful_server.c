@@ -12,8 +12,16 @@ extern QueueHandle_t update_ctrl_queue;
 
 static const char* TAG = "RESTFUL-SERVER";
 
+static void add_cors_headers(httpd_req_t *req) {
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", "Content-Type");
+}
+
 /* GET */
 esp_err_t root_get_handler(httpd_req_t* req) {
+    add_cors_headers(req);
+
     const char* resp = "success";
     httpd_resp_send(req, resp, strlen(resp));
 
@@ -21,6 +29,8 @@ esp_err_t root_get_handler(httpd_req_t* req) {
 }
 
 esp_err_t monitor_get_handler(httpd_req_t* req) {
+    add_cors_headers(req);
+
     euler_monitor_t* monitor = (euler_monitor_t*) req->user_ctx;
 
     cJSON* json = cJSON_CreateObject();
@@ -51,6 +61,8 @@ esp_err_t monitor_get_handler(httpd_req_t* req) {
 
 /* PUT */
 esp_err_t pid_put_handler(httpd_req_t* req) {
+    add_cors_headers(req);
+
     euler_pid_params_t* pid_params = (euler_pid_params_t*) req->user_ctx;
     bool updated_flag = false;
 
